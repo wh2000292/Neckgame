@@ -28,15 +28,19 @@ import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.support.v7.widget.LinearLayoutCompat;
 import android.util.Log;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.ViewGroup.LayoutParams;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import example.wh.neckgame.ImageProcessing;
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity{
 
     private Timer timer = new Timer();
     private TimerTask task;
@@ -60,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
     private static final AtomicBoolean processing = new AtomicBoolean(false);
 
     private static SurfaceView preview = null;
+    private static FrameLayout frameLayout=null;
 
     private static SurfaceHolder previewHolder = null;
 
@@ -93,16 +98,66 @@ public class MainActivity extends AppCompatActivity {
 
     private static double beats = 0;
 
+    private static String myheart;
+
     private static long startTime = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        context = getApplicationContext();
+        View v=findViewById(R.id.id_rootview);
+        v.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                int action=event.getAction();
+                switch (action)
+                {
+                    case MotionEvent.ACTION_DOWN:
+
+//                        preview = (SurfaceView) findViewById(R.id.id_preview);
+                        preview=new SurfaceView(context);
+                        frameLayout.addView(preview);
+                        previewHolder = preview.getHolder();
+                        previewHolder.addCallback(surfaceCallback);
+                        wakeLock.acquire();
+                        camera=Camera.open();
+                        startTime = System.currentTimeMillis();
+                        break;
+                    case MotionEvent.ACTION_UP:
+
+                        if(camera!=null) {
+                            wakeLock.release();
+                            camera.setPreviewCallback(null);
+                            camera.stopPreview();
+                            camera.release();
+                            camera = null;
+                        }
+                        frameLayout.removeAllViews();
+                        preview=null;
+                        Toast.makeText(context,"心率："+myheart,Toast.LENGTH_LONG).show();
+                        break;
+                }
+                return true;
+            }
+        });
+
         initConfig();
     }
 
 
+
+    public static Camera getCameraInstance(){
+        Camera c = null;
+        try {
+            c = Camera.open(); // attempt to get a Camera instance
+        }
+        catch (Exception e){
+            Log.e("Heeart","open camera error",e);
+        }
+        return c; // returns null if camera is unavailable
+    }
 
     @SuppressWarnings("deprecation")
     private void initConfig() {
@@ -112,26 +167,14 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout layout = (LinearLayout)findViewById(R.id.id_linearLayout_graph);
 
-
         series = new XYSeries(title);
-
-
         mDataset = new XYMultipleSeriesDataset();
-
-
         mDataset.addSeries(series);
-
         int color = Color.GREEN;
         PointStyle style = PointStyle.CIRCLE;
         renderer = buildRenderer(color, style, true);
-
-
         setChartSettings(renderer, "X", "Y", 0, 300, 4, 16, Color.WHITE, Color.WHITE);
-
-
         chart = ChartFactory.getLineChartView(context, mDataset, renderer);
-
-
         layout.addView(chart, new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.FILL_PARENT));
 
 
@@ -152,15 +195,14 @@ public class MainActivity extends AppCompatActivity {
                 handler.sendMessage(message);
             }
         };
-
         timer.schedule(task, 1,20);
 
-        preview = (SurfaceView) findViewById(R.id.id_preview);
-        previewHolder = preview.getHolder();
-        previewHolder.addCallback(surfaceCallback);
-        previewHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-        camera=Camera.open();
 
+        frameLayout=(FrameLayout) findViewById(R.id.layout_preview);
+//        preview = (SurfaceView) findViewById(R.id.id_preview);
+//        previewHolder = preview.getHolder();
+//        previewHolder.addCallback(surfaceCallback);
+//        previewHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
         mTV_Heart_Rate = (TextView) findViewById(R.id.id_tv_heart_rate);
         mTV_Avg_Pixel_Values = (TextView) findViewById(R.id.id_tv_Avg_Pixel_Values);
@@ -176,6 +218,9 @@ public class MainActivity extends AppCompatActivity {
     public void onDestroy() {
 
         timer.cancel();
+        if(camera!=null) {
+            camera.release();
+        }
         super.onDestroy();
     };
 
@@ -225,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
             flag = 1;
             if(gx < 200){
                 if(hua[20] > 1){
-                    Toast.makeText(MainActivity.this, "text1", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "请用您的指尖盖住摄像头镜头！", Toast.LENGTH_SHORT).show();
                     hua[20] = 0;
                 }
                 hua[20]++;
@@ -278,23 +323,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-//    @Override
-//    public void onResume() {
-//        super.onResume();
+    @Override
+    public void onResume() {
+        super.onResume();
 //        wakeLock.acquire();
 //        camera = Camera.open();
 //        startTime = System.currentTimeMillis();
-//    }
-//
-//    @Override
-//    public void onPause() {
-//        super.onPause();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
 //        wakeLock.release();
 //        camera.setPreviewCallback(null);
 //        camera.stopPreview();
 //        camera.release();
 //        camera = null;
-//    }
+    }
 
 
     private static PreviewCallback previewCallback = new PreviewCallback() {
@@ -315,7 +360,7 @@ public class MainActivity extends AppCompatActivity {
 
             int imgAvg = ImageProcessing.decodeYUV420SPtoRedAvg(data.clone(),height,width);
             gx = imgAvg;
-            mTV_Avg_Pixel_Values.setText("text2" + String.valueOf(imgAvg));
+            mTV_Avg_Pixel_Values.setText("平均像素值是" + String.valueOf(imgAvg));
 
             if (imgAvg == 0 || imgAvg == 255) {
                 processing.set(false);
@@ -331,7 +376,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-
+            //一段时间的平均像素值
             int rollingAverage = (averageArrayCnt > 0)?(averageArrayAvg/averageArrayCnt):0;
             TYPE newType = currentType;
             if (imgAvg < rollingAverage) {
@@ -339,7 +384,7 @@ public class MainActivity extends AppCompatActivity {
                 if (newType != currentType) {
                     beats++;
                     flag=0;
-                    mTV_pulse.setText("text3" + String.valueOf(beats));
+                    mTV_pulse.setText("脉冲数是" + String.valueOf(beats));
                 }
             } else if (imgAvg > rollingAverage) {
                 newType = TYPE.GREEN;
@@ -384,14 +429,14 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 int beatsAvg = (beatsArrayAvg / beatsArrayCnt);
-                mTV_Heart_Rate.setText("test4"+String.valueOf(beatsAvg) +
-                        "  ֵ:" + String.valueOf(beatsArray.length) +
+                mTV_Heart_Rate.setText("您的心率是 "+String.valueOf(beatsAvg) +
+                        "  值:" + String.valueOf(beatsArray.length) +
                         "    " + String.valueOf(beatsIndex) +
                         "    " + String.valueOf(beatsArrayAvg) +
                         "    " + String.valueOf(beatsArrayCnt));
-
-                startTime = System.currentTimeMillis();
-                beats = 0;
+                 myheart=String.valueOf(beatsAvg);
+//                startTime = System.currentTimeMillis();
+//                beats = 0;
             }
             processing.set(false);
         }
@@ -403,8 +448,10 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void surfaceCreated(SurfaceHolder holder) {
             try {
-                camera.setPreviewDisplay(previewHolder);
-                camera.setPreviewCallback(previewCallback);
+
+                   camera.setPreviewDisplay(previewHolder);
+                   camera.setPreviewCallback(previewCallback);
+
             } catch (Throwable t) {
                 Log.e("PreviewError","Exception setPreviewDisplay", t);
             }

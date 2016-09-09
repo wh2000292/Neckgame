@@ -1,17 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical" >
+    android:orientation="vertical"
+    android:id="@+id/id_rootview">
 
-    <SurfaceView
-        android:id="@+id/id_preview"
+    <!--<SurfaceView-->
+        <!--android:id="@+id/id_preview"-->
+        <!--android:layout_width="match_parent"-->
+        <!--android:layout_height="200dp"-->
+        <!--android:layout_marginLeft="50dp"-->
+        <!--android:layout_marginRight="50dp" />-->
+
+    <FrameLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/layout_preview"
         android:layout_width="match_parent"
         android:layout_height="200dp"
         android:layout_marginLeft="50dp"
         android:layout_marginRight="50dp" />
-
     <LinearLayout
         android:id="@+id/id_linearLayout_graph"
         android:layout_width="match_parent"
